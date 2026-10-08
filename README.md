@@ -64,7 +64,7 @@ This repository documents the evolution of a rigorous research framework:
 ## 🔬 Research Methodology & Key Components
 
 ### 1. Robust Data Engineering & Point-in-Time Pipeline
-* **Zero Look-Ahead Bias:** Strict enforcement of point-in-time sequential splits to ensure that rolling window normalizations and feature scalers never leak future statistical moments into historical steps.
+* **Mitigating Look-Ahead Leakage:** Strict enforcement of point-in-time sequential splits and rolling window normalizations (Welford's algorithm) to prevent future statistical moments from leaking into historical feature representations.
 * **Feature Curation:** Integrated multi-timeframe OHLCV tensors, moving volatility estimators, and order-flow proxies across high-frequency datasets.
 
 ### 2. ExtractorTransformer: Hybrid Temporal Representation
@@ -114,10 +114,29 @@ class PositionalEncoding(nn.Module):
         return self.dropout(x)
 
 
+class CausalConv1dBlock(nn.Module):
+    """
+    Dilated Causal 1D Convolution with strict past-only horizon.
+    Pads (kernel_size - 1) * dilation on both sides, then trims future elements.
+    """
+    def __init__(self, in_channels: int, out_channels: int, kernel_size: int = 3, dilation: int = 1, dropout: float = 0.1):
+        super().__init__()
+        self.pad = (kernel_size - 1) * dilation
+        self.conv = nn.Conv1d(in_channels, out_channels, kernel_size=kernel_size, dilation=dilation, padding=self.pad)
+        self.act = nn.GELU()
+        self.drop = nn.Dropout(dropout)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        out = self.conv(x)
+        if self.pad > 0:
+            out = out[:, :, :-self.pad]  # Strict causal past-only trim
+        return self.drop(self.act(out))
+
+
 class ExtractorTransformer(nn.Module):
     """
     Hybrid Temporal Feature Extractor:
-    1. TCN extracts multi-scale temporal features with causal padding.
+    1. Causal Conv1d blocks with exponential dilation (2^i) for multi-scale pattern extraction.
     2. Positional Encoding + Transformer Encoder captures long-horizon context.
     3. State projection MLP processes instantaneous internal state vectors.
     """
@@ -137,18 +156,14 @@ class ExtractorTransformer(nn.Module):
         super().__init__()
         tcn_out_dim = tcn_channels[-1]
         
-        # 1. Temporal Convolutional Backbone (Causal)
+        # 1. Temporal Convolutional Backbone (Exponential Dilation)
         layers = []
         in_c = market_feature_dim
-        for out_c in tcn_channels:
-            layers.extend([
-                nn.Conv1d(in_c, out_c, kernel_size=tcn_kernel_size, padding=(tcn_kernel_size - 1)),
-                nn.GELU(),
-                nn.Dropout(dropout)
-            ])
+        for i, out_c in enumerate(tcn_channels):
+            dilation = 2 ** i
+            layers.append(CausalConv1dBlock(in_c, out_c, kernel_size=tcn_kernel_size, dilation=dilation, dropout=dropout))
             in_c = out_c
         self.tcn = nn.Sequential(*layers)
-        self.kernel_pad = tcn_kernel_size - 1
 
         # 2. Transformer Contextual Encoder
         self.pos_encoder = PositionalEncoding(tcn_out_dim, dropout=dropout, max_len=seq_length)
@@ -175,8 +190,7 @@ class ExtractorTransformer(nn.Module):
         # market_data: [Batch, Seq_Len, Features] -> Transpose for Conv1d: [Batch, Features, Seq_Len]
         x = market_data.transpose(1, 2)
         x = self.tcn(x)
-        x = x[:, :, :-self.kernel_pad] if self.kernel_pad > 0 else x
-        x = x.transpose(1, 2) # Back to [Batch, Seq_Len, Channels]
+        x = x.transpose(1, 2)  # [Batch, Seq_Len, Channels] - Exact length preserved!
 
         # Positional Encoding + Attention
         x = self.pos_encoder(x)

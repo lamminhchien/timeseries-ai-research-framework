@@ -27,10 +27,30 @@ class PositionalEncoding(nn.Module):
         return self.dropout(x)
 
 
+class CausalConv1dBlock(nn.Module):
+    """
+    Dilated Causal 1D Convolution with strict past-only horizon.
+    Pads (kernel_size - 1) * dilation on both sides, then trims future elements.
+    """
+    def __init__(self, in_channels: int, out_channels: int, kernel_size: int = 3, dilation: int = 1, dropout: float = 0.1):
+        super().__init__()
+        self.pad = (kernel_size - 1) * dilation
+        self.conv = nn.Conv1d(in_channels, out_channels, kernel_size=kernel_size, dilation=dilation, padding=self.pad)
+        self.act = nn.GELU()
+        self.drop = nn.Dropout(dropout)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        out = self.conv(x)
+        # Trim from right so receptive field only looks back into the past
+        if self.pad > 0:
+            out = out[:, :, :-self.pad]
+        return self.drop(self.act(out))
+
+
 class ExtractorTransformer(nn.Module):
     """
     Dual-Stream Neural Network:
-    1. Temporal Stream: Dilated causal Conv1d layers + Transformer Encoder.
+    1. Temporal Stream: Dilated causal Conv1d layers (exponential dilation) + Transformer Encoder.
     2. Context Stream: Dense projection of portfolio state vectors.
     3. Fused Output: Concatenated latent embedding ready for Actor-Critic policy heads.
     """
@@ -53,17 +73,13 @@ class ExtractorTransformer(nn.Module):
             tcn_channels = [32, 64]
         
         tcn_out_dim = tcn_channels[-1]
-        self.kernel_pad = tcn_kernel_size - 1
 
-        # Stream 1: Causal Temporal Convolution
+        # Stream 1: Dilated Causal Temporal Convolutions (exponential receptive field 2^i)
         conv_layers = []
         in_c = market_feature_dim
-        for out_c in tcn_channels:
-            conv_layers.extend([
-                nn.Conv1d(in_c, out_c, kernel_size=tcn_kernel_size, padding=self.kernel_pad),
-                nn.GELU(),
-                nn.Dropout(dropout)
-            ])
+        for i, out_c in enumerate(tcn_channels):
+            dilation = 2 ** i
+            conv_layers.append(CausalConv1dBlock(in_c, out_c, kernel_size=tcn_kernel_size, dilation=dilation, dropout=dropout))
             in_c = out_c
         self.tcn = nn.Sequential(*conv_layers)
 
@@ -96,15 +112,10 @@ class ExtractorTransformer(nn.Module):
         account_data: [Batch, Account_Dim]
         Returns:      [Batch, Features_Dim]
         """
-        batch_size, seq_len, _ = market_data.shape
-
-        # Causal Conv1d requires [Batch, Channels, Seq_Len]
+        # Causal Conv1d operates on [Batch, Channels, Seq_Len]
         x = market_data.transpose(1, 2)
         x = self.tcn(x)
-        x = x.transpose(1, 2)  # [Batch, Padded_Seq_Len, Channels]
-        
-        # Enforce exact causal horizon matching input sequence length
-        x = x[:, :seq_len, :]
+        x = x.transpose(1, 2)  # [Batch, Seq_Len, Channels] - Exact length preserved!
 
         # Positional Encoding + Attention Context
         x = self.pos_encoder(x)

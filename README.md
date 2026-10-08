@@ -81,7 +81,7 @@ This repository documents the evolution of a rigorous research framework:
 
 ### 5. Architectural Scaling: From Project Tom to Project G3
 * **Memory Optimization:** Leveraged `numpy.memmap` arrays to stream gigabyte-scale datasets directly to PyTorch without RAM memory saturation.
-* **Hardware Efficiency:** Streamlined network tensor computations to sustain continuous inference with peak VRAM capped at **$< 18\text{ MB}$**, eliminating memory leaks.
+* **Hardware Efficiency:** Streamlined network tensor computations to sustain continuous inference with peak VRAM capped at **< 18 MB**, eliminating memory leaks.
 * **Walk-Forward Validation:** Evaluated strategy degradation using walk-forward out-of-sample (OOS) testing windows.
 
 ---

@@ -10,7 +10,7 @@ An end-to-end deep learning and reinforcement learning research framework dedica
 
 ---
 
-## 📌 Executive Summary
+## Executive Summary
 
 Predicting sequential market patterns is one of the most challenging domains in applied Machine Learning due to non-stationarity, low signal-to-noise ratio, and complex temporal dependencies. 
 
@@ -20,7 +20,7 @@ This repository documents the evolution of a rigorous research framework:
 
 ---
 
-## 🏛️ System Architecture
+## System Architecture
 
 ```text
                            [ Multi-Timeframe Raw Sequential Feeds ]
@@ -61,10 +61,10 @@ This repository documents the evolution of a rigorous research framework:
 
 ---
 
-## 🔬 Research Methodology & Key Components
+## Research Methodology & Key Components
 
 ### 1. Robust Data Engineering & Point-in-Time Pipeline
-* **Mitigating Look-Ahead Leakage:** Strict enforcement of point-in-time sequential splits and rolling window normalizations (Welford's algorithm) to prevent future statistical moments from leaking into historical feature representations.
+* **Mitigating Look-Ahead Leakage:** Strict enforcement of point-in-time sequential splits and training-window moment normalization to prevent future statistical moments from leaking into historical feature representations.
 * **Feature Curation:** Integrated multi-timeframe OHLCV tensors, moving volatility estimators, and order-flow proxies across high-frequency datasets.
 
 ### 2. ExtractorTransformer: Hybrid Temporal Representation
@@ -86,7 +86,7 @@ This repository documents the evolution of a rigorous research framework:
 
 ---
 
-## 💻 Technical Showcases
+## Technical Showcases
 
 ### Showcase 1: Hybrid TCN-Transformer Feature Extractor
 
@@ -262,7 +262,7 @@ def objective_worker(
 
 ---
 
-## 📊 Experimental Results & Empirical Validation
+## Experimental Results & Empirical Validation
 
 Below are quantitative results obtained across multiple optimization and evaluation checkpoints during research runs on **Project Tom**:
 
@@ -311,7 +311,7 @@ Evaluation across multi-episode rollouts verifying drawdown containment and win-
 
 ---
 
-## 🛠️ Tech Stack & Requirements
+## Tech Stack & Requirements
 
 * **Core Language:** Python 3.10+
 * **Deep Learning:** PyTorch 2.x, TorchVision
@@ -322,6 +322,6 @@ Evaluation across multi-episode rollouts verifying drawdown containment and win-
 
 ---
 
-## ⚖️ License & Disclaimer
+## License & Disclaimer
 
 This project is licensed under the MIT License. The code and models presented here are for **academic and quantitative research purposes only**. They do not constitute financial advice or real-money trading endorsements.

@@ -54,7 +54,7 @@ def generate_synthetic_market_data(num_bars: int = 2000) -> pd.DataFrame:
 
 def main():
     print("=" * 70)
-    print("🚀 [Step 1/5] Ingesting & Preprocessing Sequential Market Data...")
+    print("[Step 1/5] Ingesting & Preprocessing Sequential Market Data...")
     print("=" * 70)
     market_df = generate_synthetic_market_data(num_bars=2000)
     print(f"Generated synthetic dataset: {len(market_df)} bars (5-min intervals).")
@@ -64,7 +64,7 @@ def main():
     print(f"DataLoaders initialized: {len(train_loader)} train batches, {len(val_loader)} validation batches.")
 
     print("\n" + "=" * 70)
-    print("🧠 [Step 2/5] Initializing ExtractorTransformer Architecture...")
+    print("[Step 2/5] Initializing ExtractorTransformer Architecture...")
     print("=" * 70)
     model = ExtractorTransformer(
         market_feature_dim=8,
@@ -82,7 +82,7 @@ def main():
     print(f"Model compiled successfully. Trainable parameters: {total_params:,}")
 
     print("\n" + "=" * 70)
-    print("🏋️ [Step 3/5] Executing Model Training with Gradient Norm Guardrails...")
+    print("[Step 3/5] Executing Model Training with Gradient Norm Guardrails...")
     print("=" * 70)
     trainer = TimeSeriesTrainer(
         model=model,
@@ -100,7 +100,7 @@ def main():
         print(f"Epoch [{epoch}/{epochs}] -> Train Loss: {train_loss:.5f} | Val Loss: {eval_res['val_loss']:.5f} | Hit Rate: {eval_res['hit_rate']*100:.2f}%")
 
     print("\n" + "=" * 70)
-    print("📈 [Step 4/5] Evaluating Out-of-Sample Quantitative Metrics...")
+    print("[Step 4/5] Evaluating Out-of-Sample Quantitative Metrics...")
     print("=" * 70)
     # Generate evaluation returns from validation batch
     evaluator = StrategyEvaluator()
@@ -110,7 +110,7 @@ def main():
         print(f"  • {k.replace('_', ' ').title()}: {v}")
 
     print("\n" + "=" * 70)
-    print("💾 [Step 5/5] Serializing Checkpoints & Cloud Synchronization...")
+    print("[Step 5/5] Serializing Checkpoints & Cloud Synchronization...")
     print("=" * 70)
     checkpoint_file = "./artifacts/checkpoints/tom_model_checkpoint.pt"
     trainer.save_checkpoint(checkpoint_file)
@@ -119,7 +119,7 @@ def main():
     storage.save_experiment_metadata("exp_tom_v18_demo", metrics)
     storage.sync_to_google_drive(checkpoint_file)
 
-    print("\n✨ Pipeline execution complete! Research workflow successfully verified.\n")
+    print("\n[COMPLETE] Pipeline execution complete: Research workflow successfully verified.\n")
 
 
 if __name__ == "__main__":
